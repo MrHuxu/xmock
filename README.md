@@ -20,8 +20,8 @@ Simply generate mock structs for golang interfaces.
     -----------------------------------------------------------------------
 
     ❯ xmock --file=person.go
-    [2021-09-14T15:03:48+08:00]     [INFO]  [xmock/main.go:22]      _args||file=person.go||directory=.||outpkg=mock
-    [2021-09-14T15:03:48+08:00]     [INFO]  [xmock/main.go:91]      _generate_done||src=person.go||dist=mock/person.go
+    [2021-09-14T15:03:48+08:00]     [INFO]  _args||file=person.go||directory=.||outpkg=mock
+    [2021-09-14T15:03:48+08:00]     [INFO]  _generate_done||src=person.go||dist=mock/person.go
 
     -----------------------------------------------------------------------
 
@@ -46,8 +46,8 @@ Simply generate mock structs for golang interfaces.
     -----------------------------------------------------------------------
 
     ❯ xmock --dir=tmp
-    [2021-09-14T15:45:32+08:00]     [INFO]  [xmock/main.go:26]      _args||file=||directory=tmp||outpkg=mock
-    [2021-09-14T15:45:32+08:00]     [INFO]  [xmock/generator.go:94] _generate_done||src=person.go||dist=mock/person.go
+    [2021-09-14T15:45:32+08:00]     [INFO]  _args||file=||directory=tmp||outpkg=mock
+    [2021-09-14T15:45:32+08:00]     [INFO]  _generate_done||src=person.go||dist=mock/person.go
 
     -----------------------------------------------------------------------
 
