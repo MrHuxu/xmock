@@ -70,6 +70,14 @@ func generateForFile(dir, file string) {
 	}
 	reader := buildDistFile(fileItem)
 
+	if flagTarget == "stdout" {
+		if _, err := io.Copy(os.Stdout, reader); err != nil {
+			logger.Fatalf("_fatal||reason=%+v", err)
+		}
+
+		return
+	}
+
 	outDir := dir + "/" + flagOutPkg
 	os.MkdirAll(outDir, 0755)
 
