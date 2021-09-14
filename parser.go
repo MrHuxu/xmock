@@ -50,7 +50,7 @@ type FuncItem struct {
 
 // FieldItem ...
 type FieldItem struct {
-	Name       string
+	Names      []string
 	Type       string
 	Dependency string
 }
@@ -138,11 +138,14 @@ func parseInterfaceSpec(t *ast.TypeSpec, src []byte, offset token.Pos) *Interfac
 
 		for i, param := range fn.Params.List {
 			var paramItem FieldItem
-			if len(param.Names) > 0 {
-				paramItem.Name = param.Names[0].Name
+			if len(param.Names) == 0 {
+				paramItem.Names = []string{"p" + strconv.Itoa(i)}
 			} else {
-				paramItem.Name = "p" + strconv.Itoa(i)
+				for _, name := range param.Names {
+					paramItem.Names = append(paramItem.Names, name.Name)
+				}
 			}
+
 			paramItem.Type = string(src[param.Type.Pos()-offset : param.Type.End()-offset])
 			paramItem.setDependency()
 			funcItem.Params = append(funcItem.Params, &paramItem)
@@ -151,11 +154,14 @@ func parseInterfaceSpec(t *ast.TypeSpec, src []byte, offset token.Pos) *Interfac
 		if fn.Results != nil {
 			for i, result := range fn.Results.List {
 				var resultItem FieldItem
-				if len(result.Names) > 0 {
-					resultItem.Name = result.Names[0].Name
+				if len(result.Names) == 0 {
+					resultItem.Names = []string{"r" + strconv.Itoa(i)}
 				} else {
-					resultItem.Name = "r" + strconv.Itoa(i)
+					for _, name := range result.Names {
+						resultItem.Names = append(resultItem.Names, name.Name)
+					}
 				}
+
 				resultItem.Type = string(src[result.Type.Pos()-offset : result.Type.End()-offset])
 				resultItem.setDependency()
 				funcItem.Results = append(funcItem.Results, &resultItem)
@@ -194,19 +200,19 @@ func (f *FuncItem) buildParamList() {
 	var paramNames, paramNameAndTypes []string
 	for _, param := range f.Params {
 		if strings.HasPrefix(param.Type, "...") {
-			paramNames = append(paramNames, param.Name+"...")
+			paramNames = append(paramNames, param.Names[0]+"...")
 		} else {
-			paramNames = append(paramNames, param.Name)
+			paramNames = append(paramNames, strings.Join(param.Names, ","))
 		}
 
-		paramNameAndTypes = append(paramNameAndTypes, param.Name+" "+param.Type)
+		paramNameAndTypes = append(paramNameAndTypes, strings.Join(param.Names, ",")+" "+param.Type)
 	}
 	f.ParamListAsCallee = strings.Join(paramNameAndTypes, ", ")
 	f.ParamListAsCaller = strings.Join(paramNames, ", ")
 
 	var resultNameAndTypes []string
 	for _, result := range f.Results {
-		resultNameAndTypes = append(resultNameAndTypes, result.Name+" "+result.Type)
+		resultNameAndTypes = append(resultNameAndTypes, strings.Join(result.Names, ",")+" "+result.Type)
 	}
 	f.ResultList = strings.Join(resultNameAndTypes, ", ")
 }
