@@ -57,6 +57,12 @@ type FieldItem struct {
 
 func parseSrcFile(filePath string) *FileItem {
 	var fileItem FileItem
+	if flagSrcPkg != "" {
+		fileItem.ImportItems = append(fileItem.ImportItems, &ImportItem{
+			Name: getSourcePackageName(flagSrcPkg),
+			Path: flagSrcPkg,
+		})
+	}
 
 	src, err := ioutil.ReadFile(filePath)
 	if err != nil {
@@ -85,7 +91,7 @@ func parseSrcFile(filePath string) *FileItem {
 			}
 
 			if _, ok := t.Type.(*ast.InterfaceType); ok {
-				interfaceItem := parseInterfaceSpec(&fileItem, t, src, offset)
+				interfaceItem := parseInterfaceSpec(t, src, offset)
 				interfaceItem.ShorttenName = strings.ToLower(interfaceItem.Name[:1])
 				fileItem.InterfaceItems = append(fileItem.InterfaceItems, interfaceItem)
 			}
@@ -119,7 +125,7 @@ func parseDependencyName(path string) string {
 	return arr[len(arr)-1]
 }
 
-func parseInterfaceSpec(fileItem *FileItem, t *ast.TypeSpec, src []byte, offset token.Pos) *InterfaceItem {
+func parseInterfaceSpec(t *ast.TypeSpec, src []byte, offset token.Pos) *InterfaceItem {
 	interfaceItem := &InterfaceItem{Name: t.Name.Name}
 	i := t.Type.(*ast.InterfaceType)
 	for _, method := range i.Methods.List {
@@ -138,7 +144,7 @@ func parseInterfaceSpec(fileItem *FileItem, t *ast.TypeSpec, src []byte, offset 
 				paramItem.Name = "p" + strconv.Itoa(i)
 			}
 			paramItem.Type = string(src[param.Type.Pos()-offset : param.Type.End()-offset])
-			paramItem.setDependency(fileItem.PackageName)
+			paramItem.setDependency()
 			funcItem.Params = append(funcItem.Params, &paramItem)
 		}
 
@@ -151,7 +157,7 @@ func parseInterfaceSpec(fileItem *FileItem, t *ast.TypeSpec, src []byte, offset 
 					resultItem.Name = "r" + strconv.Itoa(i)
 				}
 				resultItem.Type = string(src[result.Type.Pos()-offset : result.Type.End()-offset])
-				resultItem.setDependency(fileItem.PackageName)
+				resultItem.setDependency()
 				funcItem.Results = append(funcItem.Results, &resultItem)
 			}
 		}
@@ -205,13 +211,23 @@ func (f *FuncItem) buildParamList() {
 	f.ResultList = strings.Join(resultNameAndTypes, ", ")
 }
 
-func (f *FieldItem) setDependency(packageName string) {
+func (f *FieldItem) setDependency() {
 	if dependencyPattern.Match([]byte(f.Type)) {
 		tmp := dependencyPattern.FindStringSubmatch(f.Type)[0]
 		f.Dependency = tmp[:len(tmp)-1]
 	} else if localPublicTypePattern.Match([]byte(f.Type)) {
+		if flagSrcPkg == "" {
+			logger.Fatalf("_fatal||reason=%s", "srcpkg must be set when the mocked structs use the public types of the source package")
+		}
+
+		packageName := getSourcePackageName(flagSrcPkg)
 		tmp := localPublicTypePattern.FindStringSubmatch(f.Type)[0]
 		f.Type = strings.Replace(f.Type, tmp, packageName+"."+tmp, -1)
 		f.Dependency = packageName
 	}
+}
+
+func getSourcePackageName(srcpkg string) string {
+	arr := strings.Split(srcpkg, "/")
+	return arr[len(arr)-1]
 }
