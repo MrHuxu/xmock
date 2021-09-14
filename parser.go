@@ -5,14 +5,14 @@ import (
 	"go/parser"
 	"go/token"
 	"io/ioutil"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
 var (
-	versionPattern = regexp.MustCompile("v[0-9]+")
+	versionPattern    = regexp.MustCompile("v[0-9]+")
+	dependencyPattern = regexp.MustCompile("[a-zA-Z0-9]+\\.")
 )
 
 // FileItem ...
@@ -29,15 +29,21 @@ type ImportItem struct {
 
 // InterfaceItem ...
 type InterfaceItem struct {
-	Name    string
-	Methods []*FuncItem
+	ShorttenName string
+	Name         string
+	Methods      []*FuncItem
 }
 
 // FuncItem ...
 type FuncItem struct {
-	Name    string
-	Params  []*FieldItem
-	Results []*FieldItem
+	Name string
+
+	Params            []*FieldItem
+	ParamListAsCallee string
+	ParamListAsCaller string
+
+	Results    []*FieldItem
+	ResultList string
 }
 
 // FieldItem ...
@@ -47,18 +53,18 @@ type FieldItem struct {
 	Dependency string
 }
 
-func parseFile(filePath string) *FileItem {
+func parseSrcFile(filePath string) *FileItem {
 	var fileItem FileItem
 
 	src, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalf("_fatal||reason=%+v", err)
 	}
 
 	fileSet := token.NewFileSet()
 	file, err := parser.ParseFile(fileSet, filePath, src, 0)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatalf("_fatal||reason=%+v", err)
 	}
 	offset := file.Pos()
 
@@ -73,12 +79,15 @@ func parseFile(filePath string) *FileItem {
 			}
 
 			if _, ok := t.Type.(*ast.InterfaceType); ok {
-				fileItem.InterfaceItems = append(fileItem.InterfaceItems, parseInterfaceSpec(t, src, offset))
+				interfaceItem := parseInterfaceSpec(t, src, offset)
+				interfaceItem.ShorttenName = strings.ToLower(interfaceItem.Name[:1])
+				fileItem.InterfaceItems = append(fileItem.InterfaceItems, interfaceItem)
 			}
 		}
 		return true
 	})
 
+	fileItem.filterUsedImports()
 	return &fileItem
 }
 
@@ -123,6 +132,7 @@ func parseInterfaceSpec(t *ast.TypeSpec, src []byte, offset token.Pos) *Interfac
 				paramItem.Name = "p" + strconv.Itoa(i)
 			}
 			paramItem.Type = string(src[param.Type.Pos()-offset : param.Type.End()-offset])
+			paramItem.setDependency()
 			funcItem.Params = append(funcItem.Params, &paramItem)
 		}
 
@@ -134,10 +144,62 @@ func parseInterfaceSpec(t *ast.TypeSpec, src []byte, offset token.Pos) *Interfac
 				resultItem.Name = "r" + strconv.Itoa(i)
 			}
 			resultItem.Type = string(src[result.Type.Pos()-offset : result.Type.End()-offset])
+			resultItem.setDependency()
 			funcItem.Results = append(funcItem.Results, &resultItem)
 		}
 
+		funcItem.buildParamList()
 		interfaceItem.Methods = append(interfaceItem.Methods, funcItem)
 	}
 	return interfaceItem
+}
+
+func (f *FileItem) filterUsedImports() {
+	usedDependencies := make(map[string]bool)
+	for _, interfaceItem := range f.InterfaceItems {
+		for _, funcItem := range interfaceItem.Methods {
+			for _, paramItem := range funcItem.Params {
+				usedDependencies[paramItem.Dependency] = true
+			}
+			for _, resultItem := range funcItem.Results {
+				usedDependencies[resultItem.Dependency] = true
+			}
+		}
+	}
+
+	var filterdImports []*ImportItem
+	for _, importItem := range f.ImportItems {
+		if usedDependencies[importItem.Name] {
+			filterdImports = append(filterdImports, importItem)
+		}
+	}
+	f.ImportItems = filterdImports
+}
+
+func (f *FuncItem) buildParamList() {
+	var paramNames, paramNameAndTypes []string
+	for _, param := range f.Params {
+		if strings.HasPrefix(param.Type, "...") {
+			paramNames = append(paramNames, param.Name+"...")
+		} else {
+			paramNames = append(paramNames, param.Name)
+		}
+
+		paramNameAndTypes = append(paramNameAndTypes, param.Name+" "+param.Type)
+	}
+	f.ParamListAsCallee = strings.Join(paramNameAndTypes, ", ")
+	f.ParamListAsCaller = strings.Join(paramNames, ", ")
+
+	var resultNameAndTypes []string
+	for _, result := range f.Results {
+		resultNameAndTypes = append(resultNameAndTypes, result.Name+" "+result.Type)
+	}
+	f.ResultList = strings.Join(resultNameAndTypes, ", ")
+}
+
+func (f *FieldItem) setDependency() {
+	if dependencyPattern.Match([]byte(f.Type)) {
+		tmp := dependencyPattern.FindStringSubmatch(f.Type)[0]
+		f.Dependency = tmp[:len(tmp)-1]
+	}
 }
