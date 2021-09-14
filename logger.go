@@ -14,9 +14,9 @@ func initLogger() {
 	cfg := zap.NewProductionConfig()
 	cfg.Encoding = "console"
 	cfg.DisableStacktrace = true
+	cfg.DisableCaller = true
 	cfg.EncoderConfig.EncodeTime = customTimeEncoder
 	cfg.EncoderConfig.EncodeLevel = customLevelEncoder
-	cfg.EncoderConfig.EncodeCaller = customCallerEncoder
 
 	tmp, err := cfg.Build()
 	if err != nil {
