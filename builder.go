@@ -13,25 +13,16 @@ var (
 	tmpl         = template.Must(template.New("dist").Parse(string(tmplBytes)))
 )
 
-// BuildOption ...
-type BuildOption struct {
-	Directory string
-	File      string
-	OutPkg    string
-}
-
 type buildArgs struct {
-	FileItem    *FileItem
-	BuildOption *BuildOption
+	OutPkg   string
+	FileItem *FileItem
 }
 
-var buildOption BuildOption
-
-func buildDistFile(fileItem *FileItem, buildOption *BuildOption) io.Reader {
+func buildDistFile(fileItem *FileItem) io.Reader {
 	var tmp bytes.Buffer
 	if err := tmpl.Execute(&tmp, buildArgs{
-		FileItem:    fileItem,
-		BuildOption: buildOption,
+		OutPkg:   flagOutPkg,
+		FileItem: fileItem,
 	}); err != nil {
 		logger.Fatalf("_fatal||reason=%+v", err)
 	}

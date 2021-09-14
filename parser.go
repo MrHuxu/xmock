@@ -136,16 +136,18 @@ func parseInterfaceSpec(t *ast.TypeSpec, src []byte, offset token.Pos) *Interfac
 			funcItem.Params = append(funcItem.Params, &paramItem)
 		}
 
-		for i, result := range fn.Results.List {
-			var resultItem FieldItem
-			if len(result.Names) > 0 {
-				resultItem.Name = result.Names[0].Name
-			} else {
-				resultItem.Name = "r" + strconv.Itoa(i)
+		if fn.Results != nil {
+			for i, result := range fn.Results.List {
+				var resultItem FieldItem
+				if len(result.Names) > 0 {
+					resultItem.Name = result.Names[0].Name
+				} else {
+					resultItem.Name = "r" + strconv.Itoa(i)
+				}
+				resultItem.Type = string(src[result.Type.Pos()-offset : result.Type.End()-offset])
+				resultItem.setDependency()
+				funcItem.Results = append(funcItem.Results, &resultItem)
 			}
-			resultItem.Type = string(src[result.Type.Pos()-offset : result.Type.End()-offset])
-			resultItem.setDependency()
-			funcItem.Results = append(funcItem.Results, &resultItem)
 		}
 
 		funcItem.buildParamList()
