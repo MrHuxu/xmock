@@ -22,7 +22,7 @@ func init() {
 
 func main() {
 	flag.Parse()
+	logger.Infof("_args||file=%s||directory=%s||target=%s||outpkg=%s", flagFile, flagDirectory, flagTarget, flagOutPkg)
 
-	logger.Infof("_args||file=%s||directory=%s||outpkg=%s", flagFile, flagDirectory, flagOutPkg)
 	generate()
 }
