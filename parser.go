@@ -18,6 +18,7 @@ var (
 
 // FileItem ...
 type FileItem struct {
+	File           string
 	PackageName    string
 	ImportItems    []*ImportItem
 	InterfaceItems []*InterfaceItem

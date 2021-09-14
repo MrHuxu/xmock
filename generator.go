@@ -65,6 +65,7 @@ func generateForFile(dir, file string) {
 	filename := arr[len(arr)-1]
 
 	fileItem := parseSrcFile(file)
+	fileItem.File = file
 	if len(fileItem.InterfaceItems) == 0 {
 		return
 	}
