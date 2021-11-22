@@ -58,11 +58,14 @@ type FieldItem struct {
 
 func parseSrcFile(filePath string) *FileItem {
 	var fileItem FileItem
+	usedImports := make(map[string]bool)
+
 	if flagSrcPkg != "" {
 		fileItem.ImportItems = append(fileItem.ImportItems, &ImportItem{
 			Name: getSourcePackageName(flagSrcPkg),
 			Path: flagSrcPkg,
 		})
+		usedImports[fileItem.ImportItems[0].Name] = true
 	}
 
 	src, err := ioutil.ReadFile(filePath)
@@ -83,7 +86,10 @@ func parseSrcFile(filePath string) *FileItem {
 		}
 
 		if i, ok := n.(*ast.ImportSpec); ok {
-			fileItem.ImportItems = append(fileItem.ImportItems, parseImportSpec(i, src, offset))
+			if importItem := parseImportSpec(i, src, offset); !usedImports[importItem.Name] {
+				fileItem.ImportItems = append(fileItem.ImportItems, parseImportSpec(i, src, offset))
+				usedImports[importItem.Name] = true
+			}
 		}
 
 		if t, ok := n.(*ast.TypeSpec); ok {
@@ -107,7 +113,7 @@ func parseSrcFile(filePath string) *FileItem {
 func parseImportSpec(t *ast.ImportSpec, src []byte, offset token.Pos) *ImportItem {
 	var importItem ImportItem
 
-	arr := strings.Split(strings.Replace(string(src[t.Pos()-offset:t.End()-offset]), `"`, "", -1), " ")
+	arr := strings.Split(strings.Replace(string(src[t.Pos()-1:t.End()-1]), `"`, "", -1), " ")
 	importItem.Path = arr[len(arr)-1]
 	if t.Name == nil {
 		importItem.Name = parseDependencyName(importItem.Path)
@@ -147,7 +153,7 @@ func parseInterfaceSpec(t *ast.TypeSpec, src []byte, offset token.Pos) *Interfac
 				}
 			}
 
-			paramItem.Type = string(src[param.Type.Pos()-offset : param.Type.End()-offset])
+			paramItem.Type = string(src[param.Type.Pos()-1 : param.Type.End()-1])
 			paramItem.setDependency()
 			funcItem.Params = append(funcItem.Params, &paramItem)
 		}
@@ -163,7 +169,7 @@ func parseInterfaceSpec(t *ast.TypeSpec, src []byte, offset token.Pos) *Interfac
 					}
 				}
 
-				resultItem.Type = string(src[result.Type.Pos()-offset : result.Type.End()-offset])
+				resultItem.Type = string(src[result.Type.Pos()-1 : result.Type.End()-1])
 				resultItem.setDependency()
 				funcItem.Results = append(funcItem.Results, &resultItem)
 			}
